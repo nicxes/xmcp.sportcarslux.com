@@ -60,11 +60,11 @@ export const schema = {
 };
 
 export const metadata: ToolMetadata = {
-  name: "get-vercel-top-pages",
+  name: "get-website-analytics",
   description:
-    "Query Vercel Analytics CSV reports (Pages, Referrers, Countries, Browsers, Devices, OS) stored in src/lib/vercel",
+    "Get website analytics from CSV reports (pages, referrers, countries, browsers, devices, operating systems). Data source: Vercel Analytics exports.",
   annotations: {
-    title: "Get Vercel Analytics",
+    title: "Get Website Analytics",
     readOnlyHint: true,
     destructiveHint: false,
     idempotentHint: true,
