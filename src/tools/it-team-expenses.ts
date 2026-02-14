@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { type InferSchema, type PromptMetadata } from "xmcp";
+import { type InferSchema, type ToolMetadata } from "xmcp";
 
 export const schema = {
   includeNotes: z
@@ -8,11 +8,15 @@ export const schema = {
     .describe("Include operational notes and context details"),
 };
 
-export const metadata: PromptMetadata = {
-  name: "web-team-expenses",
-  title: "Web Team Expenses",
+export const metadata: ToolMetadata = {
+  name: "it-team-expenses",
   description: "Returns hardcoded current web team infrastructure expenses and payment details",
-  role: "user",
+  annotations: {
+    title: "IT Team Expenses",
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+  },
 };
 
 export default function webTeamExpenses({
