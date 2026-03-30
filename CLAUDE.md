@@ -92,3 +92,17 @@ Every tool follows the same structure:
 - **Platform**: Vercel
 - **Entry points**: `dist/stdio.js` (STDIO), `dist/http.js` (HTTP)
 - **Auth**: All MCP requests require valid `x-api-key` header
+
+## xmcp Framework Reference
+
+The complete xmcp framework documentation is available at `.cursor/rules/xmcp.mdc`. Consult this file when you need details about:
+
+- Tool, prompt, and resource file conventions (schema, metadata, default export)
+- `xmcp.config.ts` configuration options
+- Middleware setup and authentication patterns
+- Transport modes (STDIO, HTTP, SSE) and adapter integrations
+- CLI commands (`xmcp dev`, `xmcp build`)
+- Zod schema usage for tool input validation
+- `ToolMetadata` annotations and their meanings
+
+Online docs: https://xmcp.dev/docs
