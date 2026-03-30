@@ -1,10 +1,8 @@
-import { apiKeyAuthMiddleware, type Middleware } from "xmcp";
+import { workosProvider } from "@xmcp-dev/workos";
 
-const middleware: Middleware = apiKeyAuthMiddleware({
-  headerName: "x-api-key",
-  validateApiKey: async (apiKey) => {
-    return apiKey === process.env.API_KEY;
-  },
+export default workosProvider({
+  apiKey: process.env.WORKOS_API_KEY!,
+  clientId: process.env.WORKOS_CLIENT_ID!,
+  authkitDomain: process.env.WORKOS_AUTHKIT_DOMAIN!,
+  baseURL: process.env.BASE_URL!,
 });
-
-export default middleware;
