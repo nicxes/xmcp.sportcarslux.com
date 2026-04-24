@@ -70,12 +70,25 @@ Every tool follows the same structure:
 - Use `toLocaleString()` for currency and timestamps
 - Emojis for visual emphasis in tool responses
 
+## Authentication
+
+Authentication is handled via **WorkOS AuthKit** (OAuth/SSO). The middleware in `src/middleware.ts` uses `@xmcp-dev/workos` provider.
+
+- **`getSession()`** — Access authenticated user's session (userId, etc.) inside tools
+- **`getUser()`** — Get full user details from WorkOS
+- **`getClient()`** — Access the full WorkOS Node SDK for advanced operations
+
+WorkOS setup requires enabling **CIMD** and **DCR** under Connect → Configuration → MCP Auth in the WorkOS Dashboard.
+
 ## Environment Variables
 
 **Required:**
 - `SUPABASE_URL` — Supabase instance URL
 - `SUPABASE_SERVICE_ROLE_KEY` — Admin access key
-- `API_KEY` — Authentication key for middleware
+- `WORKOS_API_KEY` — WorkOS API key (`sk_...`)
+- `WORKOS_CLIENT_ID` — WorkOS client ID (`client_...`)
+- `WORKOS_AUTHKIT_DOMAIN` — AuthKit domain (`yourcompany.authkit.app`)
+- `BASE_URL` — Server base URL for OAuth callbacks (e.g. `http://127.0.0.1:3001`)
 
 **Optional:**
 - `PORT` — HTTP server port (default: 3001)
