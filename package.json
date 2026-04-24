@@ -13,12 +13,12 @@
     "deploy": "vercel deploy"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.958.0",
-    "@supabase/supabase-js": "^2.75.0",
+    "@aws-sdk/client-s3": "^3.1036.0",
+    "@supabase/supabase-js": "^2.104.1",
     "@xmcp-dev/workos": "^0.0.2",
-    "dotenv": "^16.3.1",
-    "undici": "^7.16.0",
-    "xmcp": "^0.6.5",
+    "dotenv": "^16.6.1",
+    "undici": "^7.25.0",
+    "xmcp": "^0.6.9",
     "zod": "^4.3.6"
   },
   "main": "./dist/stdio.js",
