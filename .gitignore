@@ -48,3 +48,6 @@ coverage/
 .cursor/*
 !.cursor/mcp.json
 !.cursor/rules/
+
+# Generated: private business knowledge (never commit — repo is public)
+src/lib/knowledge-data.ts

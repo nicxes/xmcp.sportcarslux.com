@@ -10,7 +10,9 @@
     "dev": "xmcp dev",
     "start": "node dist/stdio.js",
     "start:http": "node dist/http.js",
-    "deploy": "vercel deploy"
+    "deploy": "vercel deploy",
+    "prebuild": "node scripts/sync-knowledge.mjs",
+    "predev": "node scripts/sync-knowledge.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1036.0",
