@@ -6,6 +6,7 @@ export type TeamProfile = {
   title: string;
   description: string;
   approver: boolean;
+  tags: string[];
 };
 
 export type Identity = {
@@ -28,6 +29,11 @@ function findTeamProfile(email: string): TeamProfile | null {
       title: content.match(/^title:\s*(.+)$/m)?.[1]?.trim() ?? email,
       description: content.match(/^description:\s*(.+)$/m)?.[1]?.trim() ?? "",
       approver: /Approver:\s*yes/i.test(content),
+      tags:
+        content
+          .match(/^tags:\s*\[(.+)\]$/m)?.[1]
+          ?.split(",")
+          .map((t) => t.trim().toLowerCase()) ?? [],
     };
   }
   return null;
