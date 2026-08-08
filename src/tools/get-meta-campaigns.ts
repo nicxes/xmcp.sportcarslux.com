@@ -93,7 +93,35 @@ export default async function getMetaCampaigns({
     return `Meta API error: ${body.error.message}`;
   }
   if (!body.data?.length) {
-    return `No ${breakdown} data for period '${preset}'${includePaused ? "" : " (active only — try includePaused: true)"}.`;
+    // Distinguish "no delivery in this period" from "wrong/empty ad account".
+    const diagRes = await fetch(
+      `https://graph.facebook.com/v21.0/${account}/campaigns?${new URLSearchParams({
+        fields: "name,effective_status",
+        limit: "100",
+        access_token: token,
+      })}`
+    );
+    const diag = (await diagRes.json()) as {
+      data?: { name: string; effective_status: string }[];
+      error?: { message: string };
+    };
+    if (diag.error) {
+      return `No insights for '${preset}', and listing campaigns failed: ${diag.error.message}. Check that META_AD_ACCOUNT_ID is the right ad account and the token has access to it.`;
+    }
+    if (!diag.data?.length) {
+      return `The ad account ${account} has NO campaigns at all. Most likely META_AD_ACCOUNT_ID points to the wrong ad account (the business may have several) — ask IT to verify it against Ads Manager.`;
+    }
+    const byStatus = diag.data.reduce<Record<string, number>>((acc, c) => {
+      acc[c.effective_status] = (acc[c.effective_status] ?? 0) + 1;
+      return acc;
+    }, {});
+    const statusSummary = Object.entries(byStatus)
+      .map(([s, n]) => `${n} ${s}`)
+      .join(", ");
+    return (
+      `No delivery data for period '${preset}', but the account has ${diag.data.length} campaigns (${statusSummary}). ` +
+      `They likely had no spend in this period — try a wider datePreset (e.g. last_30d, last_month) or includePaused: true.`
+    );
   }
 
   let totalSpend = 0;
