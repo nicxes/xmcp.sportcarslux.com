@@ -67,13 +67,34 @@ export async function catalogReport(opts: { token: string; listRejected?: boolea
           );
           if (up?.id && ((up.error_count ?? 0) > 0 || (up.warning_count ?? 0) > 0)) {
             try {
-              const errs = await graph<{ data?: { summary?: string; severity?: string; total_count?: number }[] }>(
-                `${up.id}/errors`,
-                opts.token,
-                { fields: "summary,severity,total_count", limit: "10" }
-              );
+              const errs = await graph<{
+                data?: { id?: string; summary?: string; description?: string; severity?: string; total_count?: number }[];
+              }>(`${up.id}/errors`, opts.token, {
+                fields: "id,summary,description,severity,total_count",
+                limit: "10",
+              });
               for (const err of errs.data ?? []) {
-                sections.push(`  ${err.severity ?? "issue"}: ${err.summary ?? "?"} (${err.total_count ?? 1} items)`);
+                sections.push(
+                  `  ${err.severity ?? "issue"}: ${err.summary ?? "?"} (${err.total_count ?? 1} items)` +
+                    (err.description ? ` — ${err.description}` : "")
+                );
+                if (err.id) {
+                  try {
+                    const samples = await graph<{
+                      data?: { retailer_id?: string; row_number?: number; error_message?: string }[];
+                    }>(`${err.id}/samples`, opts.token, {
+                      fields: "retailer_id,row_number,error_message",
+                      limit: "5",
+                    });
+                    for (const s of samples.data ?? []) {
+                      sections.push(
+                        `    e.g. item ${s.retailer_id ?? `row ${s.row_number ?? "?"}`}: ${s.error_message ?? "?"}`
+                      );
+                    }
+                  } catch {
+                    // samples unavailable for this error type
+                  }
+                }
               }
             } catch {
               // detail unavailable; counts above are still useful
