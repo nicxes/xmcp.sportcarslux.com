@@ -5,16 +5,23 @@ export async function catalogReport(opts: { token: string; listRejected?: boolea
     let catalogId = process.env.META_CATALOG_ID;
     let catalogName = "";
     if (!catalogId) {
-      const catalogs = await graph<{ data?: { id: string; name: string }[] }>(
-        "me/assigned_product_catalogs",
-        opts.token,
-        { fields: "id,name" }
-      );
-      if (!catalogs.data?.length) {
-        return "No catalog accessible with this token. Assign the catalog to the system user and include 'catalog_management' when regenerating the token (or set META_CATALOG_ID).";
+      // Catalog discovery is unreliable with system-user tokens; META_CATALOG_ID is the supported path.
+      try {
+        const catalogs = await graph<{ data?: { id: string; name: string }[] }>(
+          "me/assigned_product_catalogs",
+          opts.token,
+          { fields: "id,name" }
+        );
+        if (catalogs.data?.length) {
+          catalogId = catalogs.data[0].id;
+          catalogName = catalogs.data[0].name;
+        }
+      } catch {
+        // fall through to the explicit-config message
       }
-      catalogId = catalogs.data[0].id;
-      catalogName = catalogs.data[0].name;
+      if (!catalogId) {
+        return "Catalog discovery is not available with this token. Ask IT to set META_CATALOG_ID in the server environment (the catalog ID is in Commerce Manager → catalog settings/URL).";
+      }
     }
 
     const sections: string[] = [`Catalog: ${catalogName || catalogId}`];
