@@ -2,6 +2,7 @@ import { z } from "zod";
 import { type InferSchema, type ToolMetadata } from "xmcp";
 import { createClient } from '@supabase/supabase-js';
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { gatekeeper } from "../lib/gatekeeper";
 
 export const schema = {
   // Identification - exactly one required
@@ -63,6 +64,9 @@ export default async function deleteAiVideo({
   vin,
   stockNumber,
 }: InferSchema<typeof schema>) {
+  const gate = await gatekeeper("T4");
+  if (!gate.allow) return gate.message;
+
   try {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

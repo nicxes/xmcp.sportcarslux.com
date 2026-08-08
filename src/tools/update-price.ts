@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { type InferSchema, type ToolMetadata } from "xmcp";
 import { createClient } from "@supabase/supabase-js";
+import { gatekeeper, auditLine } from "../lib/gatekeeper";
 
 export const schema = {
   // Identification - exactly one required
@@ -29,6 +30,9 @@ export default async function updatePrice({
   stockNumber,
   price,
 }: InferSchema<typeof schema>) {
+  const gate = await gatekeeper("T3");
+  if (!gate.allow) return gate.message;
+
   try {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -106,7 +110,8 @@ export default async function updatePrice({
       `ID: ${updatedVehicle.id}\n` +
       `VIN: ${updatedVehicle.vin || "N/A"}\n` +
       `Stock Number: ${updatedVehicle.stock_number || "N/A"}\n\n` +
-      `Price: ${formatMoney(vehicle.price)} -> ${formatMoney(updatedVehicle.price)}`
+      `Price: ${formatMoney(vehicle.price)} -> ${formatMoney(updatedVehicle.price)}` +
+      auditLine(gate.identity)
     );
   } catch (err) {
     return `Error: ${err instanceof Error ? err.message : "Unknown error"}`;
