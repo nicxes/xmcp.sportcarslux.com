@@ -29,7 +29,7 @@ async function runReport(body: object): Promise<{ rows?: Row[]; rowCount?: numbe
   );
   const data = (await res.json()) as { rows?: Row[]; rowCount?: number; error?: { message: string } };
   if (data.error) return { error: data.error.message };
-  return data;
+  return { rows: data.rows, rowCount: data.rowCount };
 }
 
 function dateRange(range: GaDateRange) {
