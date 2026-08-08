@@ -1,56 +1,27 @@
-import { z } from "zod";
-import { type InferSchema, type ToolMetadata } from "xmcp";
-import { gatekeeper } from "../lib/gatekeeper";
-
-export const schema = {
-  platform: z
-    .enum(["instagram", "facebook", "both"])
-    .optional()
-    .describe("Which platform to report on (default: both)"),
-  limit: z.number().min(1).max(50).optional().describe("How many recent posts to analyze (default: 10)"),
-};
-
-export const metadata: ToolMetadata = {
-  name: "get-social-insights",
-  description:
-    "Organic social performance for Sport Cars Lux: recent Facebook Page and Instagram posts with likes/comments/shares, follower counts, and which vehicles drive engagement. Data source: Meta Graph API.",
-  annotations: {
-    title: "Social Insights (FB/IG)",
-    readOnlyHint: true,
-  },
-};
-
-const GRAPH = "https://graph.facebook.com/v21.0";
+import { graph } from "./meta-graph";
 
 type PageInfo = {
   id: string;
   name: string;
-  instagram_business_account?: { id: string; username?: string; followers_count?: number; media_count?: number };
+  instagram_business_account?: {
+    id: string;
+    username?: string;
+    followers_count?: number;
+    media_count?: number;
+  };
 };
 
-async function graph<T>(path: string, token: string, params: Record<string, string> = {}): Promise<T> {
-  const qs = new URLSearchParams({ ...params, access_token: token });
-  const res = await fetch(`${GRAPH}/${path}?${qs}`);
-  const body = (await res.json()) as T & { error?: { message: string } };
-  if (body.error) throw new Error(body.error.message);
-  return body;
-}
-
-export default async function getSocialInsights({ platform, limit }: InferSchema<typeof schema>): Promise<string> {
-  const gate = await gatekeeper("T1", { roles: ["it-manager", "manager", "owner", "admin"] });
-  if (!gate.allow) return gate.message;
-
-  const token = process.env.META_ACCESS_TOKEN;
-  if (!token) {
-    return "Meta is not configured yet: set META_ACCESS_TOKEN in the server environment (ask IT).";
-  }
-
-  const which = platform ?? "both";
-  const postLimit = String(limit ?? 10);
+export async function socialReport(opts: {
+  token: string;
+  platform?: "instagram" | "facebook" | "both";
+  limit?: number;
+}): Promise<string> {
+  const which = opts.platform ?? "both";
+  const postLimit = String(opts.limit ?? 10);
   const sections: string[] = [];
 
   try {
-    const pages = await graph<{ data?: PageInfo[] }>("me/accounts", token, {
+    const pages = await graph<{ data?: PageInfo[] }>("me/accounts", opts.token, {
       fields: "id,name,instagram_business_account{id,username,followers_count,media_count}",
     });
     const page = pages.data?.[0];
@@ -68,7 +39,7 @@ export default async function getSocialInsights({ platform, limit }: InferSchema
             likes?: { summary?: { total_count: number } };
             comments?: { summary?: { total_count: number } };
           }[];
-        }>(`${page.id}/posts`, token, {
+        }>(`${page.id}/posts`, opts.token, {
           fields: "message,created_time,shares,likes.summary(true),comments.summary(true)",
           limit: postLimit,
         });
@@ -101,7 +72,7 @@ export default async function getSocialInsights({ platform, limit }: InferSchema
               comments_count?: number;
               timestamp: string;
             }[];
-          }>(`${ig.id}/media`, token, {
+          }>(`${ig.id}/media`, opts.token, {
             fields: "caption,media_type,like_count,comments_count,timestamp",
             limit: postLimit,
           });
