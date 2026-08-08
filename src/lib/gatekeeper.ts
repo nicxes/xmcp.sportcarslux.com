@@ -14,8 +14,26 @@ export type GateResult =
   | { allow: true; identity: Identity }
   | { allow: false; message: string };
 
-export async function gatekeeper(tier: Tier): Promise<GateResult> {
+export type GateOptions = {
+  /** Restrict the tool to team members whose profile tags include one of these (e.g. ["owner", "manager", "it-manager"]). */
+  roles?: string[];
+};
+
+export async function gatekeeper(tier: Tier, options: GateOptions = {}): Promise<GateResult> {
   const identity = await resolveIdentity();
+
+  if (options.roles?.length) {
+    const tags = identity.profile?.tags ?? [];
+    if (!options.roles.some((role) => tags.includes(role.toLowerCase()))) {
+      return {
+        allow: false,
+        message:
+          `Denied: this tool is restricted to roles [${options.roles.join(", ")}]. ` +
+          `Current user${identity.email ? ` (${identity.email})` : ""} does not have any of them. ` +
+          `Do not retry or reconstruct its output.`,
+      };
+    }
+  }
 
   if (tier === "T1" || tier === "T2") {
     return { allow: true, identity };

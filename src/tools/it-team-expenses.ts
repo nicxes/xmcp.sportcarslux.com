@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { type InferSchema, type ToolMetadata } from "xmcp";
+import { gatekeeper } from "../lib/gatekeeper";
 
 export const schema = {
   includeNotes: z
@@ -19,9 +20,12 @@ export const metadata: ToolMetadata = {
   },
 };
 
-export default function webTeamExpenses({
+export default async function webTeamExpenses({
   includeNotes,
 }: InferSchema<typeof schema>) {
+  const gate = await gatekeeper("T1", { roles: ["it-manager", "manager", "owner", "admin"] });
+  if (!gate.allow) return gate.message;
+
   const notes = includeNotes !== false;
 
   return `Current IT Team expenses:
