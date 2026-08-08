@@ -3,6 +3,7 @@ import { graph } from "./meta-graph";
 type PageInfo = {
   id: string;
   name: string;
+  access_token?: string;
   instagram_business_account?: {
     id: string;
     username?: string;
@@ -22,7 +23,7 @@ export async function socialReport(opts: {
 
   try {
     const pages = await graph<{ data?: PageInfo[] }>("me/accounts", opts.token, {
-      fields: "id,name,instagram_business_account{id,username,followers_count,media_count}",
+      fields: "id,name,access_token,instagram_business_account{id,username,followers_count,media_count}",
     });
     const page = pages.data?.[0];
     if (!page) {
@@ -31,6 +32,7 @@ export async function socialReport(opts: {
 
     if (which !== "instagram") {
       try {
+        // Reading Page posts requires the Page's own access token, not the system user token.
         const posts = await graph<{
           data?: {
             message?: string;
@@ -39,7 +41,7 @@ export async function socialReport(opts: {
             likes?: { summary?: { total_count: number } };
             comments?: { summary?: { total_count: number } };
           }[];
-        }>(`${page.id}/posts`, opts.token, {
+        }>(`${page.id}/posts`, page.access_token ?? opts.token, {
           fields: "message,created_time,shares,likes.summary(true),comments.summary(true)",
           limit: postLimit,
         });
