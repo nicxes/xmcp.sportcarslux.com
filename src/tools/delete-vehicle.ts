@@ -24,7 +24,7 @@ export default async function deleteVehicle({
   vin,
   stockNumber,
 }: InferSchema<typeof schema>) {
-  const gate = await gatekeeper("T4");
+  const gate = await gatekeeper("T4", { roles: ["it-manager", "manager", "owner", "admin"] });
   if (!gate.allow) return gate.message;
 
   try {

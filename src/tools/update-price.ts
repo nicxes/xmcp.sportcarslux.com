@@ -30,7 +30,7 @@ export default async function updatePrice({
   stockNumber,
   price,
 }: InferSchema<typeof schema>) {
-  const gate = await gatekeeper("T3");
+  const gate = await gatekeeper("T3", { roles: ["it-manager", "manager", "owner", "admin"] });
   if (!gate.allow) return gate.message;
 
   try {

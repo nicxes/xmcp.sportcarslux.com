@@ -2,6 +2,7 @@ import { z } from "zod";
 import { type InferSchema, type ToolMetadata } from "xmcp";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import { gatekeeper } from "../lib/gatekeeper";
 
 type TopPageRow = {
   item: string;
@@ -219,6 +220,9 @@ export default async function getVercelTopPages({
   limit,
   includeSummary,
 }: InferSchema<typeof schema>) {
+  const gate = await gatekeeper("T1", { roles: ["it-manager", "manager", "owner", "admin"] });
+  if (!gate.allow) return gate.message;
+
   try {
     if (listReports) {
       const reports = await listAvailableReports();
