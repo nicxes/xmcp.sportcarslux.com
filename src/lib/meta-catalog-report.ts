@@ -28,12 +28,14 @@ export async function catalogReport(opts: { token: string; listRejected?: boolea
     const sections: string[] = [];
 
     // Step 1 — read the catalog node itself; if this fails, nothing else can work.
+    let vertical = "";
     try {
       const node = await graph<{ id: string; name?: string; product_count?: number; vertical?: string }>(
         catalogId,
         opts.token,
         { fields: "id,name,product_count,vertical" }
       );
+      vertical = node.vertical ?? "";
       sections.push(
         `Catalog: ${node.name ?? catalogName ?? catalogId} — ${node.product_count ?? "?"} products (vertical: ${node.vertical ?? "?"})`
       );
@@ -48,12 +50,13 @@ export async function catalogReport(opts: { token: string; listRejected?: boolea
     try {
       const feeds = await graph<{
         data?: {
+          id: string;
           name: string;
           product_count?: number;
-          latest_upload?: { end_time?: string; error_count?: number; warning_count?: number };
+          latest_upload?: { id?: string; end_time?: string; error_count?: number; warning_count?: number };
         }[];
       }>(`${catalogId}/product_feeds`, opts.token, {
-        fields: "name,product_count,latest_upload{end_time,error_count,warning_count}",
+        fields: "id,name,product_count,latest_upload{id,end_time,error_count,warning_count}",
       });
       if (feeds.data?.length) {
         for (const feed of feeds.data) {
@@ -62,6 +65,20 @@ export async function catalogReport(opts: { token: string; listRejected?: boolea
             `Feed "${feed.name}": ${feed.product_count ?? "?"} products — last upload ${up?.end_time?.slice(0, 16) ?? "?"}: ` +
               `${up?.error_count ?? 0} errors, ${up?.warning_count ?? 0} warnings`
           );
+          if (up?.id && ((up.error_count ?? 0) > 0 || (up.warning_count ?? 0) > 0)) {
+            try {
+              const errs = await graph<{ data?: { summary?: string; severity?: string; total_count?: number }[] }>(
+                `${up.id}/errors`,
+                opts.token,
+                { fields: "summary,severity,total_count", limit: "10" }
+              );
+              for (const err of errs.data ?? []) {
+                sections.push(`  ${err.severity ?? "issue"}: ${err.summary ?? "?"} (${err.total_count ?? 1} items)`);
+              }
+            } catch {
+              // detail unavailable; counts above are still useful
+            }
+          }
         }
       } else {
         sections.push("No product feeds found (catalog may be API-synced without feeds).");
@@ -70,31 +87,46 @@ export async function catalogReport(opts: { token: string; listRejected?: boolea
       sections.push(`Feeds: unavailable — raw Meta error: "${e instanceof Error ? e.message : String(e)}"`);
     }
 
-    // Step 3 — review status: what did Meta reject?
+    // Step 3 — item availability/review. Vehicle catalogs use the /vehicles edge, not /products.
     try {
-      const products = await graph<{
-        data?: { name?: string; review_status?: string }[];
-      }>(`${catalogId}/products`, opts.token, { fields: "name,review_status", limit: "200" });
-
-      const byStatus: Record<string, number> = {};
-      const rejected: string[] = [];
-      for (const p of products.data ?? []) {
-        const status = p.review_status ?? "unknown";
-        byStatus[status] = (byStatus[status] ?? 0) + 1;
-        if (status === "rejected" && p.name) rejected.push(p.name);
-      }
-      sections.push(
-        `Products by review status: ${Object.entries(byStatus)
-          .map(([s, n]) => `${n} ${s}`)
-          .join(", ") || "none found"}`
-      );
-      if (rejected.length && opts.listRejected !== false) {
+      if (vertical === "vehicles") {
+        const vehicles = await graph<{
+          data?: { title?: string; availability?: string }[];
+        }>(`${catalogId}/vehicles`, opts.token, { fields: "title,availability", limit: "200" });
+        const byAvailability: Record<string, number> = {};
+        for (const v of vehicles.data ?? []) {
+          const a = v.availability ?? "unknown";
+          byAvailability[a] = (byAvailability[a] ?? 0) + 1;
+        }
         sections.push(
-          `REJECTED by Meta (not showing in catalog ads):\n${rejected.slice(0, 15).map((n) => `- ${n}`).join("\n")}`
+          `Vehicles by availability: ${Object.entries(byAvailability)
+            .map(([s, n]) => `${n} ${s}`)
+            .join(", ") || "none found"}`
         );
+      } else {
+        const products = await graph<{
+          data?: { name?: string; review_status?: string }[];
+        }>(`${catalogId}/products`, opts.token, { fields: "name,review_status", limit: "200" });
+        const byStatus: Record<string, number> = {};
+        const rejected: string[] = [];
+        for (const p of products.data ?? []) {
+          const status = p.review_status ?? "unknown";
+          byStatus[status] = (byStatus[status] ?? 0) + 1;
+          if (status === "rejected" && p.name) rejected.push(p.name);
+        }
+        sections.push(
+          `Products by review status: ${Object.entries(byStatus)
+            .map(([s, n]) => `${n} ${s}`)
+            .join(", ") || "none found"}`
+        );
+        if (rejected.length && opts.listRejected !== false) {
+          sections.push(
+            `REJECTED by Meta (not showing in catalog ads):\n${rejected.slice(0, 15).map((n) => `- ${n}`).join("\n")}`
+          );
+        }
       }
     } catch (e) {
-      sections.push(`Product review status: unavailable — raw Meta error: "${e instanceof Error ? e.message : String(e)}"`);
+      sections.push(`Item status: unavailable — raw Meta error: "${e instanceof Error ? e.message : String(e)}"`);
     }
 
     return sections.join("\n\n");
