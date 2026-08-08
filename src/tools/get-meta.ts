@@ -50,8 +50,7 @@ export default async function getMeta({
   limit,
   listRejected,
 }: InferSchema<typeof schema>): Promise<string> {
-  // TEMP TEST: it-manager/admin removed to verify role denial — revert after
-  const gate = await gatekeeper("T1", { roles: ["manager", "owner"] });
+  const gate = await gatekeeper("T1", { roles: ["it-manager", "manager", "owner", "admin"] });
   if (!gate.allow) return gate.message;
 
   const token = process.env.META_ACCESS_TOKEN;
