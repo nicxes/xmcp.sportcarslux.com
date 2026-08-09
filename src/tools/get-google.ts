@@ -12,12 +12,13 @@ import {
   eventsReport,
   campaignsReport,
 } from "../lib/google-analytics-report";
+import { searchReport } from "../lib/google-search-report";
 
 export const schema = {
   report: z
-    .enum(["traffic", "pages", "events", "campaigns"])
+    .enum(["traffic", "pages", "events", "campaigns", "search"])
     .describe(
-      "Which Google Analytics report: 'traffic' = sessions/users by channel; 'pages' = most viewed pages (incl. vehicle pages); 'events' = event/conversion counts (leads, clicks); 'campaigns' = campaign performance incl. Google Ads cost if linked"
+      "Which Google report: 'traffic' = sessions/users by channel; 'pages' = most viewed pages (incl. vehicle pages); 'events' = event/conversion counts (leads, clicks); 'campaigns' = campaign performance incl. Google Ads cost if linked; 'search' = organic Google Search queries/pages (Search Console: clicks, impressions, position)"
     ),
   dateRange: z
     .enum(GA_PRESETS as unknown as [GaPreset, ...GaPreset[]])
@@ -32,7 +33,11 @@ export const schema = {
     .enum(["previous_period", "previous_year"])
     .optional()
     .describe("Also fetch the same report for a comparison window: the immediately previous period, or the same dates one year earlier"),
-  limit: z.number().min(1).max(100).optional().describe("[pages/events] Max rows (default: 20)"),
+  searchBy: z
+    .enum(["query", "page"])
+    .optional()
+    .describe("[search] Group organic results by search query (default) or by landing page"),
+  limit: z.number().min(1).max(100).optional().describe("[pages/events/search] Max rows (default: 20)"),
 };
 
 export const metadata: ToolMetadata = {
@@ -46,9 +51,10 @@ export const metadata: ToolMetadata = {
 };
 
 async function run(
-  report: "traffic" | "pages" | "events" | "campaigns",
+  report: "traffic" | "pages" | "events" | "campaigns" | "search",
   range: ResolvedRange,
-  limit: number
+  limit: number,
+  searchBy: "query" | "page"
 ): Promise<string> {
   switch (report) {
     case "traffic":
@@ -59,6 +65,8 @@ async function run(
       return eventsReport(range, limit);
     case "campaigns":
       return campaignsReport(range);
+    case "search":
+      return searchReport(range, searchBy, limit);
   }
 }
 
@@ -68,6 +76,7 @@ export default async function getGoogle({
   startDate,
   endDate,
   compare,
+  searchBy,
   limit,
 }: InferSchema<typeof schema>): Promise<string> {
   const gate = await gatekeeper("T1", { roles: ["it-manager", "manager", "owner", "admin"] });
@@ -77,11 +86,12 @@ export default async function getGoogle({
   const range = resolveRange(dateRange, startDate, endDate);
 
   try {
-    const current = await run(report, range, rows);
+    const groupBy = searchBy ?? "query";
+    const current = await run(report, range, rows, groupBy);
     if (!compare) return current;
 
     const compareRange = shiftRange(range, compare);
-    const previous = await run(report, compareRange, rows);
+    const previous = await run(report, compareRange, rows, groupBy);
     return (
       `=== CURRENT PERIOD ===\n${current}\n\n` +
       `=== COMPARISON (${compare === "previous_year" ? "same period last year" : "previous period"}) ===\n${previous}`

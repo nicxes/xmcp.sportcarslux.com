@@ -1,6 +1,6 @@
 import { createSign } from "node:crypto";
 
-let cachedToken: { token: string; expiresAt: number } | null = null;
+const cachedTokens = new Map<string, { token: string; expiresAt: number }>();
 
 /**
  * Service-account OAuth for Google APIs (no SDK): signs a JWT with the
@@ -8,8 +8,9 @@ let cachedToken: { token: string; expiresAt: number } | null = null;
  * shortly before expiry.
  */
 export async function getGoogleAccessToken(scope: string): Promise<string> {
-  if (cachedToken && Date.now() < cachedToken.expiresAt) {
-    return cachedToken.token;
+  const cached = cachedTokens.get(scope);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.token;
   }
 
   const email = process.env.GOOGLE_SA_EMAIL;
@@ -42,6 +43,6 @@ export async function getGoogleAccessToken(scope: string): Promise<string> {
     throw new Error(`Google auth failed: ${body.error_description ?? body.error ?? "unknown error"}`);
   }
 
-  cachedToken = { token: body.access_token, expiresAt: Date.now() + 50 * 60 * 1000 };
+  cachedTokens.set(scope, { token: body.access_token, expiresAt: Date.now() + 50 * 60 * 1000 });
   return body.access_token;
 }
