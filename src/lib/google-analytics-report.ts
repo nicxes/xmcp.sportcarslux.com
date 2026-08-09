@@ -1,15 +1,73 @@
 import { getGoogleAccessToken } from "./google-auth";
 
-export const GA_DATE_RANGES = {
-  today: "today",
-  yesterday: "yesterday",
-  last_7d: "7daysAgo",
-  last_14d: "14daysAgo",
-  last_30d: "30daysAgo",
-  last_90d: "90daysAgo",
-} as const;
+export const GA_PRESETS = [
+  "today",
+  "yesterday",
+  "last_7d",
+  "last_14d",
+  "last_30d",
+  "last_90d",
+  "last_6m",
+  "last_12m",
+  "this_year",
+  "last_year",
+] as const;
 
-export type GaDateRange = keyof typeof GA_DATE_RANGES;
+export type GaPreset = (typeof GA_PRESETS)[number];
+
+export type ResolvedRange = { startDate: string; endDate: string };
+
+const iso = (d: Date) => d.toISOString().slice(0, 10);
+const daysAgo = (n: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d;
+};
+
+/** Resolves a preset or explicit dates into a concrete YYYY-MM-DD range. */
+export function resolveRange(preset?: GaPreset, startDate?: string, endDate?: string): ResolvedRange {
+  if (startDate) return { startDate, endDate: endDate ?? iso(new Date()) };
+  const today = iso(new Date());
+  switch (preset ?? "last_7d") {
+    case "today":
+      return { startDate: today, endDate: today };
+    case "yesterday":
+      return { startDate: iso(daysAgo(1)), endDate: iso(daysAgo(1)) };
+    case "last_7d":
+      return { startDate: iso(daysAgo(7)), endDate: today };
+    case "last_14d":
+      return { startDate: iso(daysAgo(14)), endDate: today };
+    case "last_30d":
+      return { startDate: iso(daysAgo(30)), endDate: today };
+    case "last_90d":
+      return { startDate: iso(daysAgo(90)), endDate: today };
+    case "last_6m":
+      return { startDate: iso(daysAgo(182)), endDate: today };
+    case "last_12m":
+      return { startDate: iso(daysAgo(365)), endDate: today };
+    case "this_year":
+      return { startDate: `${new Date().getFullYear()}-01-01`, endDate: today };
+    case "last_year": {
+      const y = new Date().getFullYear() - 1;
+      return { startDate: `${y}-01-01`, endDate: `${y}-12-31` };
+    }
+  }
+}
+
+/** Shifts a resolved range for comparisons. */
+export function shiftRange(range: ResolvedRange, mode: "previous_period" | "previous_year"): ResolvedRange {
+  const start = new Date(range.startDate);
+  const end = new Date(range.endDate);
+  if (mode === "previous_year") {
+    start.setFullYear(start.getFullYear() - 1);
+    end.setFullYear(end.getFullYear() - 1);
+  } else {
+    const days = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+    start.setDate(start.getDate() - days);
+    end.setDate(end.getDate() - days);
+  }
+  return { startDate: iso(start), endDate: iso(end) };
+}
 
 type Row = { dimensionValues?: { value: string }[]; metricValues?: { value: string }[] };
 
@@ -32,14 +90,14 @@ async function runReport(body: object): Promise<{ rows?: Row[]; rowCount?: numbe
   return { rows: data.rows, rowCount: data.rowCount };
 }
 
-function dateRange(range: GaDateRange) {
-  return [{ startDate: GA_DATE_RANGES[range], endDate: "today" }];
+function dateRange(range: ResolvedRange) {
+  return [{ startDate: range.startDate, endDate: range.endDate }];
 }
 
 const num = (v?: string) => Number(v ?? 0);
 const fmt = (v?: string) => num(v).toLocaleString();
 
-export async function trafficReport(range: GaDateRange): Promise<string> {
+export async function trafficReport(range: ResolvedRange): Promise<string> {
   const report = await runReport({
     dateRanges: dateRange(range),
     dimensions: [{ name: "sessionDefaultChannelGroup" }],
@@ -48,7 +106,7 @@ export async function trafficReport(range: GaDateRange): Promise<string> {
     limit: 15,
   });
   if (report.error) return `GA4 error: ${report.error}`;
-  if (!report.rows?.length) return `No traffic data for ${range}.`;
+  if (!report.rows?.length) return `No traffic data for ${range.startDate}..${range.endDate}.`;
 
   let sessions = 0;
   let users = 0;
@@ -57,10 +115,10 @@ export async function trafficReport(range: GaDateRange): Promise<string> {
     users += num(r.metricValues?.[1]?.value);
     return `- ${r.dimensionValues?.[0]?.value}: ${fmt(r.metricValues?.[0]?.value)} sessions, ${fmt(r.metricValues?.[1]?.value)} users, ${fmt(r.metricValues?.[2]?.value)} pageviews`;
   });
-  return `Website traffic by channel (${range}):\n${lines.join("\n")}\n\nTOTAL: ${sessions.toLocaleString()} sessions, ${users.toLocaleString()} users`;
+  return `Website traffic by channel (${range.startDate} to ${range.endDate}):\n${lines.join("\n")}\n\nTOTAL: ${sessions.toLocaleString()} sessions, ${users.toLocaleString()} users`;
 }
 
-export async function pagesReport(range: GaDateRange, limit: number): Promise<string> {
+export async function pagesReport(range: ResolvedRange, limit: number): Promise<string> {
   const report = await runReport({
     dateRanges: dateRange(range),
     dimensions: [{ name: "pagePath" }],
@@ -69,16 +127,16 @@ export async function pagesReport(range: GaDateRange, limit: number): Promise<st
     limit,
   });
   if (report.error) return `GA4 error: ${report.error}`;
-  if (!report.rows?.length) return `No page data for ${range}.`;
+  if (!report.rows?.length) return `No page data for ${range.startDate}..${range.endDate}.`;
 
   const lines = report.rows.map(
     (r) =>
       `- ${r.dimensionValues?.[0]?.value}: ${fmt(r.metricValues?.[0]?.value)} views, ${fmt(r.metricValues?.[1]?.value)} users`
   );
-  return `Top pages (${range}):\n${lines.join("\n")}`;
+  return `Top pages (${range.startDate} to ${range.endDate}):\n${lines.join("\n")}`;
 }
 
-export async function eventsReport(range: GaDateRange, limit: number): Promise<string> {
+export async function eventsReport(range: ResolvedRange, limit: number): Promise<string> {
   const report = await runReport({
     dateRanges: dateRange(range),
     dimensions: [{ name: "eventName" }],
@@ -87,15 +145,15 @@ export async function eventsReport(range: GaDateRange, limit: number): Promise<s
     limit,
   });
   if (report.error) return `GA4 error: ${report.error}`;
-  if (!report.rows?.length) return `No event data for ${range}.`;
+  if (!report.rows?.length) return `No event data for ${range.startDate}..${range.endDate}.`;
 
   const lines = report.rows.map(
     (r) => `- ${r.dimensionValues?.[0]?.value}: ${fmt(r.metricValues?.[0]?.value)}`
   );
-  return `Events (${range}):\n${lines.join("\n")}`;
+  return `Events (${range.startDate} to ${range.endDate}):\n${lines.join("\n")}`;
 }
 
-export async function campaignsReport(range: GaDateRange): Promise<string> {
+export async function campaignsReport(range: ResolvedRange): Promise<string> {
   // With Google Ads linked to GA4, cost metrics come through the Data API.
   const withCost = await runReport({
     dateRanges: dateRange(range),
@@ -116,7 +174,7 @@ export async function campaignsReport(range: GaDateRange): Promise<string> {
       totalCost += cost;
       return `- ${r.dimensionValues?.[0]?.value}: ${fmt(r.metricValues?.[0]?.value)} sessions, $${cost.toFixed(2)} ad cost, ${fmt(r.metricValues?.[2]?.value)} ad clicks`;
     });
-    return `Campaigns (${range}):\n${lines.join("\n")}\n\nTOTAL ad cost: $${totalCost.toFixed(2)}`;
+    return `Campaigns (${range.startDate} to ${range.endDate}):\n${lines.join("\n")}\n\nTOTAL ad cost: $${totalCost.toFixed(2)}`;
   }
 
   // Fallback without cost metrics (Ads not linked or metrics unavailable).
@@ -128,10 +186,10 @@ export async function campaignsReport(range: GaDateRange): Promise<string> {
     limit: 20,
   });
   if (plain.error) return `GA4 error: ${plain.error}`;
-  if (!plain.rows?.length) return `No campaign data for ${range}.`;
+  if (!plain.rows?.length) return `No campaign data for ${range.startDate}..${range.endDate}.`;
   const lines = plain.rows.map(
     (r) =>
       `- ${r.dimensionValues?.[0]?.value}: ${fmt(r.metricValues?.[0]?.value)} sessions, ${fmt(r.metricValues?.[1]?.value)} users`
   );
-  return `Campaigns (${range}) — ad cost unavailable (Google Ads link?):\n${lines.join("\n")}`;
+  return `Campaigns (${range.startDate} to ${range.endDate}) — ad cost unavailable (Google Ads link?):\n${lines.join("\n")}`;
 }
