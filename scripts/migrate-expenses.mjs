@@ -2,7 +2,7 @@
 // One-off migration: inserts the parsed Excel rows (scripts/data/argentina-expenses.json,
 // produced by scripts/parse-expenses-xlsx.py) into internal_expenses.
 //
-// Idempotent: refuses to run if rows with source='excel-import' already exist
+// Idempotent: refuses to run if rows with source='google-sheets' already exist
 // for the program, unless --force is passed (which deletes and re-imports them).
 //
 // Usage: node scripts/migrate-expenses.mjs [--force]
@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import "dotenv/config";
 
-const PROGRAM = "argentina-export";
+const PROGRAM = "Argentina Export";
 const here = dirname(fileURLToPath(import.meta.url));
 const dataPath = join(here, "data", "argentina-expenses.json");
 
@@ -39,12 +39,12 @@ if (probe.error) {
 const existing = await supabase
   .from("internal_expenses")
   .select("id", { count: "exact", head: true })
-  .eq("source", "excel-import")
+  .eq("source", "google-sheets")
   .eq("program", PROGRAM);
 
 if ((existing.count ?? 0) > 0) {
   if (!process.argv.includes("--force")) {
-    console.error(`\n${existing.count} excel-import rows already exist for '${PROGRAM}'.`);
+    console.error(`\n${existing.count} google-sheets rows already exist for '${PROGRAM}'.`);
     console.error("Re-run with --force to delete and re-import them.");
     process.exit(1);
   }
@@ -52,7 +52,7 @@ if ((existing.count ?? 0) > 0) {
   const del = await supabase
     .from("internal_expenses")
     .delete()
-    .eq("source", "excel-import")
+    .eq("source", "google-sheets")
     .eq("program", PROGRAM);
   if (del.error) {
     console.error(`Delete failed: ${del.error.message}`);

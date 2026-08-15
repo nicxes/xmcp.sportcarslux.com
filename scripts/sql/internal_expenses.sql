@@ -29,7 +29,7 @@ create table if not exists internal_expenses (
   notes             text,
 
   -- Audit
-  source            text not null default 'mcp',  -- 'excel-import' for migrated rows
+  source            text not null default 'mcp',  -- 'google-sheets' for migrated rows
   created_by        text,             -- email of the team member who logged it
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now(),

@@ -196,7 +196,7 @@ def parse_master_sheet(ws):
                 "category": categorize(a_text),
                 "amount": round(amount, 2),
                 "expense_date": extract_date(a_text),
-                "source": "excel-import",
+                "source": "google-sheets",
             }
             for note in side_notes:
                 parsed = parse_side_note(note, amount)
