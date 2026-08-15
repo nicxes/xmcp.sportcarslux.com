@@ -22,12 +22,14 @@ export const schema = {
     ),
   limit: z.number().int().positive().max(500).optional().describe("Max detail rows (default 200)"),
   format: z
-    .enum(["text", "json"])
+    .enum(["text", "json", "csv"])
     .optional()
     .describe(
-      "'text' (default) = human-readable report. 'json' = raw structured data with per-client " +
-        "and per-category aggregates. ALWAYS use 'json' when the user wants charts, graphs, " +
-        "visualizations, comparisons, or data to export."
+      "'text' (default) = human-readable report. 'json' = structured data with per-client " +
+        "and per-category aggregates: use it for charts, graphs and comparisons. " +
+        "'csv' = every matching row as compact CSV: ALWAYS use it when the user wants an " +
+        "Excel/spreadsheet/file export, and write the CSV content to the file verbatim " +
+        "instead of re-typing rows."
     ),
 };
 
@@ -112,6 +114,36 @@ export default async function getExpenses(input: InferSchema<typeof schema>) {
     }
 
     const total = rows.reduce((sum, r) => sum + Number(r.amount), 0);
+
+    if (input.format === "csv") {
+      const csvCell = (value: string | number | null) => {
+        if (value === null || value === undefined) return "";
+        const text = String(value);
+        return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+      };
+      const header =
+        "client,vehicle,stock_number,deal_number,category,description,amount_usd,amount_original,currency_original,expense_date,reference";
+      const lines = rows.map((r) =>
+        [
+          csvCell(r.client_name),
+          csvCell(r.vehicle),
+          csvCell(r.stock_number),
+          csvCell(r.deal_number),
+          csvCell(r.category),
+          csvCell(r.description),
+          Number(r.amount),
+          r.amount_original !== null ? Number(r.amount_original) : "",
+          csvCell(r.currency_original),
+          csvCell(r.expense_date),
+          csvCell(r.reference),
+        ].join(",")
+      );
+      return (
+        `${rows.length} rows, total USD ${Math.round(total * 100) / 100}. ` +
+        `CSV below — copy it verbatim into the export file:\n\n` +
+        [header, ...lines].join("\n")
+      );
+    }
 
     if (input.format === "json") {
       const byClient = new Map<string, { total: number; count: number; vehicle: string | null }>();
