@@ -60,7 +60,7 @@ export const metadata: ToolMetadata = {
 };
 
 export default async function addExpense(input: InferSchema<typeof schema>) {
-  const gate = await gatekeeper("T2", { roles: ["manager", "owner"] });
+  const gate = await gatekeeper("T2", { roles: ["manager", "owner", "admin"] });
   if (!gate.allow) return gate.message;
 
   try {

@@ -53,23 +53,23 @@ const CAPABILITIES: Record<string, Capability[]> = {
     {
       what: "Cargar un gasto de un auto de cliente — reemplaza el Excel 'Reporte de Autos'",
       example: '"cargale $315 al Mercedes de Maria Fernanda por el lower chrome"',
-      roles: ["manager", "owner"],
+      roles: ["manager", "owner", "admin"],
     },
     {
       what: "Consultar gastos y totales: por cliente, por categoría, por fecha, o buscar facturas",
       example: '"¿cuánto llevamos gastado en el auto de Botti?" / "gastos de junio"',
-      roles: ["manager", "owner"],
+      roles: ["manager", "owner", "admin"],
     },
     {
       what: "Borrar un gasto mal cargado",
       example: '"borrá ese último gasto que lo cargué dos veces"',
-      roles: ["manager", "owner"],
+      roles: ["manager", "owner", "admin"],
       needsApprover: true,
     },
     {
       what: "Auditar los gastos: duplicados, autos sin costo, montos raros",
       example: '"auditá los gastos a ver si está todo bien"',
-      roles: ["manager", "owner"],
+      roles: ["manager", "owner", "admin"],
     },
   ],
   "📊 Analytics y marketing": [

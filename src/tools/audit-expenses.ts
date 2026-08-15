@@ -74,7 +74,7 @@ function levenshtein(a: string, b: string): number {
 }
 
 export default async function auditExpenses({ program }: InferSchema<typeof schema>) {
-  const gate = await gatekeeper("T1", { roles: ["manager", "owner"] });
+  const gate = await gatekeeper("T1", { roles: ["manager", "owner", "admin"] });
   if (!gate.allow) return gate.message;
 
   try {

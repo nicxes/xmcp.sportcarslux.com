@@ -69,7 +69,7 @@ const money = (value: number) =>
   `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default async function getExpenses(input: InferSchema<typeof schema>) {
-  const gate = await gatekeeper("T1", { roles: ["manager", "owner"] });
+  const gate = await gatekeeper("T1", { roles: ["manager", "owner", "admin"] });
   if (!gate.allow) return gate.message;
 
   try {
