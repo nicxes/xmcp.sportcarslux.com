@@ -2,6 +2,7 @@ import { z } from "zod";
 import { type InferSchema, type ToolMetadata } from "xmcp";
 import { createClient } from "@supabase/supabase-js";
 import { gatekeeper, auditLine } from "../lib/gatekeeper";
+import { CATEGORIES, DEFAULT_PROGRAM, normalizeCategory, normalizeProgram } from "../lib/expense-labels";
 
 export const schema = {
   clientName: z.string().describe("Client the expense belongs to, e.g. 'Nicolas Botti'"),
@@ -15,17 +16,7 @@ export const schema = {
   vin: z.string().optional().describe("VIN, for cars without stock number"),
 
   category: z
-    .enum([
-      "costo-vehiculo",
-      "transporte-envio",
-      "mecanica",
-      "seguro",
-      "comision",
-      "titulo-tramites",
-      "viajes-viaticos",
-      "fees",
-      "otros",
-    ])
+    .enum(CATEGORIES)
     .optional()
     .describe("Expense category. Infer it from the description if the user doesn't say."),
   expenseDate: z
@@ -41,7 +32,7 @@ export const schema = {
   program: z
     .string()
     .optional()
-    .describe("Business program this expense belongs to. Defaults to 'argentina-export'."),
+    .describe("Business program this expense belongs to. Defaults to 'Argentina Export'."),
 };
 
 export const metadata: ToolMetadata = {
@@ -75,7 +66,7 @@ export default async function addExpense(input: InferSchema<typeof schema>) {
     const { data: expense, error } = await supabase
       .from("internal_expenses")
       .insert({
-        program: input.program ?? "argentina-export",
+        program: normalizeProgram(input.program),
         client_name: input.clientName.trim(),
         vehicle: input.vehicle?.trim() ?? null,
         stock_number: input.stockNumber?.trim() ?? null,
@@ -83,7 +74,7 @@ export default async function addExpense(input: InferSchema<typeof schema>) {
         customer_number: input.customerNumber?.trim() ?? null,
         vin: input.vin?.trim() ?? null,
         description: input.description.trim(),
-        category: input.category ?? null,
+        category: normalizeCategory(input.category),
         amount: input.amount,
         amount_original: input.amountOriginal ?? null,
         currency_original: input.currencyOriginal ?? null,
@@ -119,8 +110,11 @@ export default async function addExpense(input: InferSchema<typeof schema>) {
         ? ` (${input.amountOriginal.toLocaleString()} ${input.currencyOriginal ?? "?"})`
         : "") +
       `\n` +
-      (input.category ? `Category: ${input.category}\n` : "") +
+      (input.category ? `Category: ${normalizeCategory(input.category)}\n` : "") +
       (input.expenseDate ? `Date: ${input.expenseDate}\n` : "") +
+      (input.program && normalizeProgram(input.program) !== DEFAULT_PROGRAM
+        ? `Program: ${normalizeProgram(input.program)}\n`
+        : "") +
       `\n💰 Running total for ${input.clientName}: $${clientTotal.toLocaleString("en-US", { maximumFractionDigits: 2 })}` +
       auditLine(gate.identity)
     );

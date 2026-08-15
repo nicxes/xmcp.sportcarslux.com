@@ -2,13 +2,14 @@ import { z } from "zod";
 import { type InferSchema, type ToolMetadata } from "xmcp";
 import { createClient } from "@supabase/supabase-js";
 import { gatekeeper } from "../lib/gatekeeper";
+import { normalizeCategory, normalizeProgram } from "../lib/expense-labels";
 
 export const schema = {
   clientName: z.string().optional().describe("Filter by client name (partial match)"),
   vehicle: z.string().optional().describe("Filter by vehicle (partial match, e.g. 'GT2')"),
   stockNumber: z.string().optional().describe("Filter by exact stock number"),
   dealNumber: z.string().optional().describe("Filter by exact deal number"),
-  category: z.string().optional().describe("Filter by category, e.g. 'transporte-envio'"),
+  category: z.string().optional().describe("Filter by category, e.g. 'Transporte y Envío'"),
   search: z.string().optional().describe("Search text inside expense descriptions"),
   dateFrom: z.string().optional().describe("Only expenses on/after this date (YYYY-MM-DD)"),
   dateTo: z.string().optional().describe("Only expenses on/before this date (YYYY-MM-DD)"),
@@ -90,12 +91,12 @@ export default async function getExpenses(input: InferSchema<typeof schema>) {
       )
       .is("deleted_at", null);
 
-    if (input.program) query = query.eq("program", input.program);
+    if (input.program) query = query.eq("program", normalizeProgram(input.program));
     if (input.clientName) query = query.ilike("client_name", `%${input.clientName}%`);
     if (input.vehicle) query = query.ilike("vehicle", `%${input.vehicle}%`);
     if (input.stockNumber) query = query.eq("stock_number", input.stockNumber);
     if (input.dealNumber) query = query.eq("deal_number", input.dealNumber);
-    if (input.category) query = query.eq("category", input.category);
+    if (input.category) query = query.eq("category", normalizeCategory(input.category));
     if (input.search) query = query.ilike("description", `%${input.search}%`);
     if (input.dateFrom) query = query.gte("expense_date", input.dateFrom);
     if (input.dateTo) query = query.lte("expense_date", input.dateTo);
@@ -157,7 +158,7 @@ export default async function getExpenses(input: InferSchema<typeof schema>) {
         clientEntry.vehicle = clientEntry.vehicle ?? r.vehicle;
         byClient.set(client, clientEntry);
 
-        const category = r.category ?? "(sin categoria)";
+        const category = r.category ?? "Sin categoría";
         const categoryEntry = byCategory.get(category) ?? { total: 0, count: 0 };
         categoryEntry.total = Math.round((categoryEntry.total + Number(r.amount)) * 100) / 100;
         categoryEntry.count += 1;
@@ -225,7 +226,7 @@ export default async function getExpenses(input: InferSchema<typeof schema>) {
     if (summaryMode === "categories") {
       const byCategory = new Map<string, { total: number; count: number }>();
       for (const r of rows) {
-        const key = r.category ?? "(sin categoria)";
+        const key = r.category ?? "Sin categoría";
         const entry = byCategory.get(key) ?? { total: 0, count: 0 };
         entry.total += Number(r.amount);
         entry.count += 1;

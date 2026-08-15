@@ -2,6 +2,7 @@ import { z } from "zod";
 import { type InferSchema, type ToolMetadata } from "xmcp";
 import { createClient } from "@supabase/supabase-js";
 import { gatekeeper } from "../lib/gatekeeper";
+import { normalizeProgram } from "../lib/expense-labels";
 
 export const schema = {
   program: z.string().optional().describe("Business program to audit (default: all)"),
@@ -89,7 +90,7 @@ export default async function auditExpenses({ program }: InferSchema<typeof sche
       .from("internal_expenses")
       .select("id, client_name, vehicle, description, category, amount, expense_date, notes, source, created_at")
       .is("deleted_at", null);
-    if (program) query = query.eq("program", program);
+    if (program) query = query.eq("program", normalizeProgram(program));
 
     const { data, error } = await query.limit(10000);
     if (error) return `Error querying expenses: ${error.message}`;
@@ -161,7 +162,7 @@ export default async function auditExpenses({ program }: InferSchema<typeof sche
     }
     const missingCost: string[] = [];
     for (const [client, clientRows] of clients) {
-      const costRows = clientRows.filter((r) => r.category === "costo-vehiculo");
+      const costRows = clientRows.filter((r) => r.category === "Costo del Vehículo");
       const costTotal = costRows.reduce((sum, r) => sum + Number(r.amount), 0);
       if (costRows.length === 0) {
         missingCost.push(`• ${client} (${clientRows[0].vehicle ?? "?"}) — sin línea de costo del vehículo`);
@@ -203,7 +204,7 @@ export default async function auditExpenses({ program }: InferSchema<typeof sche
     const warnings = sections.filter((s) => s.startsWith("⚠️")).length;
     return (
       `🔍 Audit de gastos — ${rows.length} gastos, ${clients.size} clientes` +
-      (program ? ` (programa: ${program})` : "") +
+      (program ? ` (programa: ${normalizeProgram(program)})` : "") +
       ` — ${warnings === 0 ? "todo en orden ✅" : `${warnings} chequeos con avisos`}\n\n` +
       sections.join("\n\n")
     );

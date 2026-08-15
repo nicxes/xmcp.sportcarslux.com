@@ -1,13 +1,13 @@
 -- internal_expenses: generic internal expense ledger, mirrors the "Vehicle
 -- Expense Report" Excel structure. One row per expense; client/vehicle data is
 -- denormalized onto each row. `program` scopes each row to a business program
--- (first one: 'argentina-export'), so future programs reuse this same table.
+-- (first one: 'Argentina Export'), so future programs reuse this same table.
 --
 -- Run this once in the Supabase SQL Editor.
 
 create table if not exists internal_expenses (
   id                uuid primary key default gen_random_uuid(),
-  program           text not null default 'argentina-export',
+  program           text not null default 'Argentina Export',
 
   -- Who/what the expense belongs to (the Excel block header)
   client_name       text,
@@ -19,7 +19,7 @@ create table if not exists internal_expenses (
 
   -- The expense itself (the Excel line item)
   description       text not null,
-  category          text,             -- costo-vehiculo | transporte-envio | mecanica | seguro | comision | titulo-tramites | viajes-viaticos | fees | otros
+  category          text,             -- Costo del Vehículo | Transporte y Envío | Mecánica | Seguro | Comisión | Título y Trámites | Viajes y Viáticos | Fees | Otros
   amount            numeric not null, -- always USD
   amount_original   numeric,          -- if paid in another currency
   currency_original text,             -- e.g. 'EUR'

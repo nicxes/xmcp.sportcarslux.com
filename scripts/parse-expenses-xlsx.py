@@ -17,29 +17,29 @@ from datetime import datetime
 
 import openpyxl
 
-PROGRAM = "argentina-export"
+PROGRAM = "Argentina Export"
 
 CATEGORY_RULES = [
-    ("seguro", ["seguro", "progressive"]),
-    ("comision", ["comision", "comsion", "cupo", "broker", "comm "]),
-    ("titulo-tramites", ["titulo", "title", "placa", "tag ", "apostill", "notariz",
+    ("Seguro", ["seguro", "progressive"]),
+    ("Comisión", ["comision", "comsion", "cupo", "broker", "comm "]),
+    ("Título y Trámites", ["titulo", "title", "placa", "tag ", "apostill", "notariz",
                          "west flagler", "west flager", "escribania", "consulado",
                          "baja + itv", "matriculacion", "papele", "tramite", "traimite",
                          "certificacion de documentos", "despachante"]),
-    ("transporte-envio", ["grua", "tow", "transport", "contenedor", "red logistics",
+    ("Transporte y Envío", ["grua", "tow", "transport", "contenedor", "red logistics",
                           "red logistcs", "envio", "flete", "puerto", "uhaul",
                           "mudanza", "storage", "trastero", "deposito fiscal",
                           "megaton", "megatom", "metagatom", "hbl", "embajale",
                           "aki", "autotrader"]),
-    ("mecanica", ["fixar", "mtech", "valhalla", "vahalla", "mecanic", "mechanic",
+    ("Mecánica", ["fixar", "mtech", "valhalla", "vahalla", "mecanic", "mechanic",
                   "brake", "tire", "llanta", "engine", "repair", "polish", "pulido",
                   "alignment", "tapiceria", "tapizeria", "dashboard", "tablero",
                   "spoiler", "chrome", "kilometraje", "km", "millas", "velocimetro",
                   "enmascar", "fondo", "instrumental", "desmontar", "grill",
                   "timing chain", "clutch", "top ", "lock cylinder", "premier"]),
-    ("viajes-viaticos", ["uber", "pasaje", "hotel", "viaje", "viatico", "gasolina",
+    ("Viajes y Viáticos", ["uber", "pasaje", "hotel", "viaje", "viatico", "gasolina",
                          "tickt", "ticket"]),
-    ("fees", ["fee", "bank", "acreditacion", "diferencia", "diff", "porcentaje",
+    ("Fees", ["fee", "bank", "acreditacion", "diferencia", "diff", "porcentaje",
               "costo por transferencia", "le cobran"]),
 ]
 
@@ -62,11 +62,11 @@ def clean_id(value):
 def categorize(description):
     desc = description.lower()
     if VEHICLE_COST_PAT.match(desc.strip()) and "costo por" not in desc and "costo de grua" not in desc:
-        return "costo-vehiculo"
+        return "Costo del Vehículo"
     for category, keywords in CATEGORY_RULES:
         if any(k in desc for k in keywords):
             return category
-    return "otros"
+    return "Otros"
 
 
 DATE_PAT = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{2,4})")
