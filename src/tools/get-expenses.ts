@@ -21,6 +21,14 @@ export const schema = {
         "'categories' = totals by category. 'none' = full expense detail."
     ),
   limit: z.number().int().positive().max(500).optional().describe("Max detail rows (default 200)"),
+  format: z
+    .enum(["text", "json"])
+    .optional()
+    .describe(
+      "'text' (default) = human-readable report. 'json' = raw structured data with per-client " +
+        "and per-category aggregates. ALWAYS use 'json' when the user wants charts, graphs, " +
+        "visualizations, comparisons, or data to export."
+    ),
 };
 
 export const metadata: ToolMetadata = {
@@ -61,7 +69,7 @@ const money = (value: number) =>
   `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default async function getExpenses(input: InferSchema<typeof schema>) {
-  const gate = await gatekeeper("T1", { roles: ["manager", "owner", "admin"] });
+  const gate = await gatekeeper("T1", { roles: ["manager", "owner"] });
   if (!gate.allow) return gate.message;
 
   try {
@@ -104,6 +112,58 @@ export default async function getExpenses(input: InferSchema<typeof schema>) {
     }
 
     const total = rows.reduce((sum, r) => sum + Number(r.amount), 0);
+
+    if (input.format === "json") {
+      const byClient = new Map<string, { total: number; count: number; vehicle: string | null }>();
+      const byCategory = new Map<string, { total: number; count: number }>();
+      const byMonth = new Map<string, { total: number; count: number }>();
+      for (const r of rows) {
+        const client = r.client_name ?? "(sin cliente)";
+        const clientEntry = byClient.get(client) ?? { total: 0, count: 0, vehicle: null };
+        clientEntry.total = Math.round((clientEntry.total + Number(r.amount)) * 100) / 100;
+        clientEntry.count += 1;
+        clientEntry.vehicle = clientEntry.vehicle ?? r.vehicle;
+        byClient.set(client, clientEntry);
+
+        const category = r.category ?? "(sin categoria)";
+        const categoryEntry = byCategory.get(category) ?? { total: 0, count: 0 };
+        categoryEntry.total = Math.round((categoryEntry.total + Number(r.amount)) * 100) / 100;
+        categoryEntry.count += 1;
+        byCategory.set(category, categoryEntry);
+
+        if (r.expense_date) {
+          const month = r.expense_date.slice(0, 7);
+          const monthEntry = byMonth.get(month) ?? { total: 0, count: 0 };
+          monthEntry.total = Math.round((monthEntry.total + Number(r.amount)) * 100) / 100;
+          monthEntry.count += 1;
+          byMonth.set(month, monthEntry);
+        }
+      }
+      const detailLimit = input.limit ?? 500;
+      return JSON.stringify(
+        {
+          count: rows.length,
+          grand_total: Math.round(total * 100) / 100,
+          by_client: Object.fromEntries(byClient),
+          by_category: Object.fromEntries(byCategory),
+          by_month: Object.fromEntries([...byMonth.entries()].sort()),
+          note_by_month: "only includes expenses that have expense_date",
+          expenses: rows.slice(0, detailLimit).map((r) => ({
+            id: r.id.slice(0, 8),
+            client: r.client_name,
+            vehicle: r.vehicle,
+            description: r.description,
+            category: r.category,
+            amount: Number(r.amount),
+            date: r.expense_date,
+          })),
+          expenses_truncated: rows.length > detailLimit,
+        },
+        null,
+        1
+      );
+    }
+
     const summaryMode =
       input.summary ?? (input.clientName || input.search || input.stockNumber ? "none" : "clients");
 

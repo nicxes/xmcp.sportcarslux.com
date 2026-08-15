@@ -9,13 +9,21 @@ export const schema = {
     .describe(
       "Expense id to delete: full UUID or the short 8-char prefix shown by get-expenses"
     ),
+  confirm: z
+    .boolean()
+    .optional()
+    .describe(
+      "Must be true to actually delete. Without it, the tool only returns a preview of the " +
+        "expense. Only set it after the user has seen the expense details and explicitly confirmed."
+    ),
 };
 
 export const metadata: ToolMetadata = {
   name: "delete-expense",
   description:
-    "Soft-delete one internal expense (to fix a wrongly logged entry). " +
-    "Use get-expenses first to find the expense id, and confirm with the user before deleting.",
+    "Soft-delete one internal expense (to fix a wrongly logged entry). The expense disappears " +
+    "from reports but stays recoverable in the database. Two-step: call without 'confirm' to get " +
+    "a preview, show it to the user, and only call again with confirm=true after they explicitly agree.",
   annotations: {
     title: "Delete Vehicle Expense",
     readOnlyHint: false,
@@ -24,8 +32,8 @@ export const metadata: ToolMetadata = {
   },
 };
 
-export default async function deleteExpense({ id }: InferSchema<typeof schema>) {
-  const gate = await gatekeeper("T3", { roles: ["manager", "owner", "admin"] });
+export default async function deleteExpense({ id, confirm }: InferSchema<typeof schema>) {
+  const gate = await gatekeeper("T3", { roles: ["manager", "owner"] });
   if (!gate.allow) return gate.message;
 
   try {
@@ -59,6 +67,21 @@ export default async function deleteExpense({ id }: InferSchema<typeof schema>) 
     }
 
     const expense = matches[0];
+
+    if (!confirm) {
+      return (
+        `⚠️ CONFIRMACIÓN REQUERIDA — este gasto se va a eliminar de todos los reportes:\n\n` +
+        `Client: ${expense.client_name}\n` +
+        (expense.vehicle ? `Vehicle: ${expense.vehicle}\n` : "") +
+        `Description: ${expense.description}\n` +
+        `Amount: $${Number(expense.amount).toLocaleString()}\n` +
+        (expense.expense_date ? `Date: ${expense.expense_date}\n` : "") +
+        `\nNothing was deleted yet. Show this to the user and ask them to confirm. ` +
+        `Only if they explicitly say yes, call delete-expense again with confirm=true. ` +
+        `(It is a soft delete: recoverable from the database by IT, but gone from all reports.)`
+      );
+    }
+
     const { error: updateError } = await supabase
       .from("internal_expenses")
       .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
