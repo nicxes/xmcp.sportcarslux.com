@@ -33,7 +33,7 @@ export const metadata: ToolMetadata = {
 };
 
 export default async function deleteExpense({ id, confirm }: InferSchema<typeof schema>) {
-  const gate = await gatekeeper("T3", { roles: ["manager", "owner", "admin"] });
+  const gate = await gatekeeper("T3", { roles: ["manager", "owner"] });
   if (!gate.allow) return gate.message;
 
   try {
