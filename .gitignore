@@ -54,3 +54,6 @@ src/lib/knowledge-data.ts
 
 # Obsolete local file with team emails (identity now comes from bundled knowledge)
 src/lib/user-roles.ts
+
+# Local business data (public repo — never commit client financials)
+scripts/data/
