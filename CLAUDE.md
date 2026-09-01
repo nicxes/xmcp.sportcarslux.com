@@ -30,13 +30,11 @@ src/
     delete-vehicle.ts # Hard delete vehicles (warns about vAuto resync)
     add-notes.ts      # Add/update/delete vehicle notes
     delete-ai-video.ts # Delete AI videos from Supabase + R2
-    get-website-analytics.ts # Parse Vercel Analytics CSV exports
     it-team-expenses.ts      # Static infrastructure cost report
   prompts/            # Prompt templates for AI interactions
   resources/          # Resource handlers (users, config)
   lib/
     supabase.ts       # Supabase client initialization
-    vercel/           # Analytics CSV data files
   middleware.ts       # API key authentication (x-api-key header)
 xmcp.config.ts        # Framework config (paths, port 3001, debug logging)
 ```
@@ -98,7 +96,7 @@ WorkOS setup requires enabling **CIMD** and **DCR** under Connect → Configurat
 
 - Vehicle inventory syncs from **vAuto.com** every 2 hours into Supabase
 - Deleted vehicles may reappear on next sync if still listed at vAuto
-- Analytics data comes from Vercel Analytics CSV exports stored in `src/lib/vercel/`
+- Website analytics come from GA4 via the `get-google` tool (Google Analytics Data API), not from files
 
 ## Deployment
 
@@ -108,7 +106,7 @@ WorkOS setup requires enabling **CIMD** and **DCR** under Connect → Configurat
 
 ## xmcp Framework Reference
 
-The complete xmcp framework documentation is available at `.cursor/rules/xmcp.mdc`. Consult this file when you need details about:
+The complete xmcp framework documentation is available at `docs/xmcp.md`. Consult this file when you need details about:
 
 - Tool, prompt, and resource file conventions (schema, metadata, default export)
 - `xmcp.config.ts` configuration options

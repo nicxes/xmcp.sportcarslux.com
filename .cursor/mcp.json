@@ -1,7 +1,0 @@
-{
-  "mcpServers": {
-    "sportcars-xmcp": {
-      "url": "http://localhost:3001/mcp"
-    }
-  }
-}
