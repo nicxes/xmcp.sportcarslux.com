@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
  * Syncs the business knowledge from the private brain repo
- * (nicxes/os.sportcarslux.com) into a generated TypeScript module,
+ * (nicxes/brain.sportcarslux.com) into a generated TypeScript module,
  * so it gets bundled into the build (no fs reads at runtime — Vercel
  * deployments don't ship src/ files).
  *
  * Sources, in order of preference:
  *   1. GitHub clone using KNOWLEDGE_REPO_TOKEN or GITHUB_TOKEN (Vercel build)
- *   2. Local checkout at ../os.sportcarslux.com (local dev)
+ *   2. Local checkout at ../brain (local dev)
  *   3. None found → generates an empty module and warns (build still succeeds)
  *
  * IMPORTANT: this repo is PUBLIC and the brain repo is PRIVATE.
@@ -22,8 +22,8 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_FILE = path.join(ROOT, "src/lib/knowledge-data.ts");
-const REPO = "github.com/nicxes/os.sportcarslux.com";
-const LOCAL_CHECKOUT = path.resolve(ROOT, "../os.sportcarslux.com");
+const REPO = "github.com/nicxes/brain.sportcarslux.com";
+const LOCAL_CHECKOUT = path.resolve(ROOT, "../brain");
 
 function resolveSource() {
   const token = process.env.KNOWLEDGE_REPO_TOKEN || process.env.GITHUB_TOKEN;
@@ -34,7 +34,12 @@ function resolveSource() {
     });
     return { dir, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
   }
-  if (existsSync(path.join(LOCAL_CHECKOUT, "AGENTS.md"))) {
+  // Require knowledge/ as well as AGENTS.md: any repo has an AGENTS.md, only the
+  // brain has the knowledge tree. Guards against pointing at the wrong sibling.
+  if (
+    existsSync(path.join(LOCAL_CHECKOUT, "AGENTS.md")) &&
+    existsSync(path.join(LOCAL_CHECKOUT, "knowledge"))
+  ) {
     return { dir: LOCAL_CHECKOUT, cleanup: () => {} };
   }
   return null;
@@ -84,7 +89,7 @@ function main() {
     source.cleanup();
   } else {
     console.warn(
-      "[sync-knowledge] WARNING: no knowledge source found (no KNOWLEDGE_REPO_TOKEN and no local ../os.sportcarslux.com). Building with empty knowledge."
+      "[sync-knowledge] WARNING: no knowledge source found (no KNOWLEDGE_REPO_TOKEN and no local ../brain). Building with empty knowledge."
     );
   }
 
