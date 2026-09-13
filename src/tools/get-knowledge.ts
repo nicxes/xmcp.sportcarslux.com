@@ -26,15 +26,22 @@ function describeLine(content: string): string {
   return match ? match[1].trim() : "";
 }
 
-// Optional `access: <tag>` frontmatter restricts a file to team members
-// whose profile tags include that tag (e.g. `access: owner`).
-function accessTag(content: string): string | null {
-  return content.match(/^access:\s*(\S+)/m)?.[1]?.toLowerCase() ?? null;
+// Optional `access:` frontmatter restricts a file to team members whose
+// profile tags include at least one of the listed tags. Accepts a single
+// tag (`access: owner`) or a comma-separated list (`access: owner, accounting`).
+function accessTags(content: string): string[] {
+  return (
+    content
+      .match(/^access:\s*(.+)$/m)?.[1]
+      ?.split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean) ?? []
+  );
 }
 
 function canRead(content: string, profileTags: string[]): boolean {
-  const required = accessTag(content);
-  return !required || profileTags.includes(required);
+  const required = accessTags(content);
+  return required.length === 0 || required.some((tag) => profileTags.includes(tag));
 }
 
 export default async function getKnowledge({ path }: InferSchema<typeof schema>): Promise<string> {
@@ -57,7 +64,7 @@ export default async function getKnowledge({ path }: InferSchema<typeof schema>)
     const lines = paths.map((p) => {
       const restricted = !canRead(KNOWLEDGE[p], profileTags);
       const desc = describeLine(KNOWLEDGE[p]);
-      return `- ${p}${desc ? ` — ${desc}` : ""}${restricted ? ` [RESTRICTED: requires '${accessTag(KNOWLEDGE[p])}' role — not readable by this user]` : ""}`;
+      return `- ${p}${desc ? ` — ${desc}` : ""}${restricted ? ` [RESTRICTED: requires one of '${accessTags(KNOWLEDGE[p]).join("', '")}' — not readable by this user]` : ""}`;
     });
     return [
       `Sport Cars Lux knowledge base (brain @ ${KNOWLEDGE_VERSION}, synced ${KNOWLEDGE_SYNCED_AT}).`,
@@ -74,7 +81,7 @@ export default async function getKnowledge({ path }: InferSchema<typeof schema>)
   }
   if (!canRead(content, profileTags)) {
     return (
-      `Access denied: ${path} is restricted to team members with the '${accessTag(content)}' role. ` +
+      `Access denied: ${path} is restricted to team members with one of these roles: '${accessTags(content).join("', '")}'. ` +
       `Current user${identity.email ? ` (${identity.email})` : ""} does not have it. Do not retry or attempt to reconstruct its contents.`
     );
   }
